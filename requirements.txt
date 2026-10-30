@@ -1,0 +1,26 @@
+# ---- Phase 1: core ----
+flask>=3.0
+cryptography>=42.0
+python-dotenv>=1.0
+
+# Emotion model (RoBERTa) and handwriting OCR (TrOCR). Install CPU torch FIRST:
+#   pip install torch --index-url https://download.pytorch.org/whl/cpu
+torch>=2.2
+transformers>=4.40
+sentencepiece>=0.2          # tokenizer used by some TrOCR checkpoints
+
+# ---- Phase 2: voice + OCR ----
+faster-whisper>=1.0         # Whisper on CPU; decodes webm/mp3/m4a itself (no ffmpeg needed)
+opencv-python-headless>=4.9
+numpy>=1.26
+pillow>=10.0
+pytesseract>=0.3.10         # Python wrapper; the Tesseract program is a separate install (see README)
+
+# ---- Phase 3: events and patterns ----
+spacy>=3.8,<3.9
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+mlxtend>=0.23               # Apriori + association rules
+pandas>=2.0
+
+# ---- Dev ----
+pytest>=8.0

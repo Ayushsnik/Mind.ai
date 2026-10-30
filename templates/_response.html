@@ -1,0 +1,58 @@
+{# Mind.ai's note back on an entry. Rendered in the entry page and re-fetched by reply.js. #}
+<section class="reply" id="reply" data-entry="{{ entry_id }}"
+         data-auto="{{ 1 if (not response and settings.auto_reflect and settings.ai_mode != 'off') else 0 }}">
+{% if response and response.kind == 'crisis' %}
+  <div class="crisis" role="region" aria-label="Support">
+    <h2>You don't have to carry this alone</h2>
+    <p>{{ response.reflection }}</p>
+    <ul class="helplines">
+      {% for h in config.HELPLINES %}
+      <li><a href="tel:{{ h.number }}"><strong>{{ h.number }}</strong> {{ h.name }}</a>{% if h.note %}<span>{{ h.note }}</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+    <ul class="reply-steps">
+      {% for s in response.suggestions[1:] %}<li>{{ s }}</li>{% endfor %}
+    </ul>
+    <p class="quiet">{{ response.affirmation }} Mind.ai doesn't write AI replies to entries like this one; please reach a person.</p>
+  </div>
+{% elif response %}
+  <h2>A note back</h2>
+  <p class="reply-text">{{ response.reflection }}</p>
+  {% if response.affirmation %}<p class="reply-affirm">{{ response.affirmation }}</p>{% endif %}
+  <ul class="reply-steps">
+    {% for s in response.suggestions %}<li>{{ s }}</li>{% endfor %}
+  </ul>
+  <footer class="reply-meta">
+    <p class="provenance">
+      {% if response.backend == 'local' %}Written on this device by {{ response.model.split(' (')[0] }} in {{ '%.1f'|format(response.latency_ms / 1000) }} s. Your entry never left your computer.
+      {% elif response.backend == 'gemini' %}Written by {{ response.model }} from an anonymised summary in {{ '%.1f'|format(response.latency_ms / 1000) }} s.
+      {% else %}Written from your own patterns, without an AI model. <a href="{{ url_for('settings_page') }}">Set up AI replies</a>.{% endif %}
+    </p>
+    {% if response.note %}<p class="quiet small">{{ response.note|truncate(160) }}</p>{% endif %}
+    {% if response.sent %}
+    <details class="sent"><summary>See exactly what was sent to Gemini</summary><pre>{{ response.sent }}</pre></details>
+    {% endif %}
+    <div class="reply-actions">
+      <span class="rate" role="group" aria-label="Was this helpful?">
+        <span class="quiet small">Helpful?</span>
+        <button type="button" class="chip-btn" data-rate="1" data-response="{{ response.id }}" aria-pressed="{{ 'true' if response.rating == 1 else 'false' }}">Yes</button>
+        <button type="button" class="chip-btn" data-rate="-1" data-response="{{ response.id }}" aria-pressed="{{ 'true' if response.rating == -1 else 'false' }}">No</button>
+      </span>
+      <button type="button" class="link-btn" data-reflect="">Write again</button>
+      {% if response.backend != 'gemini' and settings.gemini_consent and ai.gemini.configured %}
+      <button type="button" class="link-btn" data-reflect="gemini">Ask Gemini instead</button>
+      {% elif response.backend == 'gemini' %}
+      <button type="button" class="link-btn" data-reflect="local">Write it on this device instead</button>
+      {% endif %}
+    </div>
+  </footer>
+{% else %}
+  {% if not (settings.auto_reflect and settings.ai_mode != 'off') %}
+  <button type="button" class="btn-ghost" data-reflect="">Get a note back</button>
+  {% endif %}
+  <p class="status status-busy" data-waiting {{ 'hidden' if not (settings.auto_reflect and settings.ai_mode != 'off') }}>
+    Writing a note back… On this device this can take up to a minute.
+  </p>
+{% endif %}
+  <p class="status status-error" data-error hidden></p>
+</section>

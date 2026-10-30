@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Journal · Mind.ai{% endblock %}
+{% block content %}
+<section class="page">
+  <h1 class="page-title">Journal</h1>
+  {% if event %}
+  <p class="filter-note">Entries that mention <strong>{{ event_name|lower }}</strong>. <a href="{{ url_for('list_entries') }}">Show all entries</a></p>
+  {% endif %}
+  <div class="filters" role="group" aria-label="Filter by emotion">
+    <a href="{{ url_for('list_entries', event=event) }}" class="chip {{ 'on' if not active }}">All</a>
+    {% for emo in EMOTIONS if counts.get(emo) %}
+    <a href="{{ url_for('list_entries', emotion=emo, event=event) }}" class="chip {{ 'on' if active == emo }}">
+      <span class="dot e-{{ emo }}"></span>{{ emo }} {{ counts[emo] }}
+    </a>
+    {% endfor %}
+  </div>
+
+  {% if entries %}
+  <ul class="entry-list">
+    {% for e in entries %}
+    <li class="e-edge-{{ e.emotion }}">
+      <a href="{{ url_for('view_entry', entry_id=e.id) }}">
+        <span class="when">{{ e.created_at|nicedate }}{% if e.input_type != 'text' %}<span class="via">{{ 'spoken' if e.input_type == 'voice' else 'from a photo' }}</span>{% endif %}</span>
+        <span class="what">{{ e.title or (e.body[:110] ~ ('…' if e.body|length > 110 else '')) }}</span>
+        <span class="mood"><span class="dot e-{{ e.emotion }}"></span>{{ e.emotion }}</span>
+      </a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <div class="empty">
+    <p>{{ 'No ' ~ active ~ ' entries yet.' if active else 'No entries yet.' }}</p>
+    <a class="btn" href="{{ url_for('write') }}">Write your first entry</a>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% from "_alerts.html" import alert_list, emotion_bar %}
+{% block title %}Insights · Mind.ai{% endblock %}
+{% set feel = {'fear': 'anxious', 'sadness': 'low', 'anger': 'angry', 'disgust': 'put off', 'joy': 'happy', 'surprise': 'surprised', 'neutral': 'flat'} %}
+
+{% macro pattern_card(p) %}
+<article class="pcard">
+  <h3>{{ p.label }}</h3>
+  <p class="pcard-sum">You felt {{ feel[p.top_emotion] }} in <strong>{{ p.top_count }} of {{ p.n }}</strong> entries that mention {{ 'it' if p.event.startswith('topic:') else 'this' }}.</p>
+  {{ emotion_bar(p.emotions) }}
+  <p class="pcard-meta">
+    {% if p.kind == 'drains' %}{{ '%.1f'|format(p.lift) }}× as often negative as your usual
+    {% else %}{{ '%.1f'|format(p.lift) }}× as often happy as your usual{% endif %}
+    {% if p.trend == 'easier' %}<span class="trend good">Getting easier lately</span>
+    {% elif p.trend == 'harder' %}<span class="trend bad">Getting harder lately</span>
+    {% elif p.trend == 'fading' %}<span class="trend bad">Helping less than before</span>
+    {% elif p.trend == 'growing' %}<span class="trend good">Helping more lately</span>{% endif %}
+  </p>
+  <a class="pcard-link" href="{{ url_for('list_entries', event=p.event) }}">Read these entries</a>
+</article>
+{% endmacro %}
+
+{% block content %}
+<section class="page insights">
+  <h1 class="page-title">Insights</h1>
+
+  {% if not data.enough_data %}
+  <div class="empty insights-empty">
+    <p class="big">Patterns appear after {{ data.min_entries }} entries. You have {{ data.analysed_entries }}.</p>
+    <ol class="progress" aria-hidden="true">
+      {% for i in range(data.min_entries) %}<li class="{{ 'on' if i < data.analysed_entries }}"></li>{% endfor %}
+    </ol>
+    <p>Every entry is already being read for what happened and how it felt. Keep writing and this page fills in.</p>
+    <a class="btn" href="{{ url_for('write') }}">Write an entry</a>
+  </div>
+  {% else %}
+  <p class="lede">From {{ data.analysed_entries }} entries. Each situation is linked to the feeling in the sentence where you mentioned it, and only differences that are clearly more than chance are shown as patterns.</p>
+
+  {{ alert_list(alerts, url_for('insights_page')) }}
+
+  {% set drains = data.drains() %}{% set lifts = data.lifts() %}
+  <div class="two-col">
+    <section>
+      <h2>What weighs on you</h2>
+      {% for p in drains %}{{ pattern_card(p) }}{% else %}
+      <p class="quiet">Nothing stands out as reliably harder than usual. That's good news.</p>
+      {% endfor %}
+    </section>
+    <section>
+      <h2>What lifts you</h2>
+      {% for p in lifts %}{{ pattern_card(p) }}{% else %}
+      <p class="quiet">Nothing reliably lifts your mood yet. Mention what you do for fun and it will show up here.</p>
+      {% endfor %}
+    </section>
+  </div>
+
+  {% if data.combos %}
+  <section class="block">
+    <h2>Harder or better together</h2>
+    <p class="quiet">Situations that hit differently when they happen on the same day than either does alone.</p>
+    <ul class="combos">
+      {% for c in data.combos %}
+      <li><strong>{{ c.labels|join(' + ') }}</strong> on the same day usually meant {{ c.outcome }}
+        <span class="quiet">({{ c.count }} days, {{ (c.confidence * 100)|round|int }}% vs {{ (c.best_single_confidence * 100)|round|int }}% for either alone)</span></li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <section class="block">
+    <h2>Your week</h2>
+    <ol class="week">
+      {% for d in data.days %}
+      <li class="day-{{ d.kind }}">
+        <span class="wd">{{ d.name[:3] }}</span>
+        <span class="bar" style="--neg: {{ d.negative_rate }}" aria-hidden="true"></span>
+        <span class="wd-note">{% if d.n %}{{ (d.negative_rate * 100)|round|int }}% hard<br><span class="quiet">{{ d.n }} entr{{ 'y' if d.n == 1 else 'ies' }}</span>{% else %}<span class="quiet">no entries</span>{% endif %}</span>
+      </li>
+      {% endfor %}
+    </ol>
+    {% set hard = data.days|selectattr('kind', 'equalto', 'hard')|list %}
+    {% if hard %}<p class="week-note">{{ hard|map(attribute='name')|andjoin }} {{ 'is' if hard|length == 1 else 'are' }} noticeably harder than your other days.</p>{% endif %}
+  </section>
+
+  {% set emerging = data.emerging() %}
+  {% if emerging %}
+  <section class="block">
+    <h2>Still forming</h2>
+    <p class="quiet">These lean one way but there aren't enough entries to be sure yet. They don't trigger heads-ups.</p>
+    <ul class="emerging">
+      {% for p in emerging %}
+      <li><span class="dot e-{{ p.top_emotion }}"></span>{{ p.label }}: {{ feel[p.top_emotion] }} in {{ p.top_count }} of {{ p.n }}</li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+  {% endif %}
+
+  <footer class="insights-foot">
+    {% if extractor != 'spacy' %}
+    <p class="warn">Events are being found with the basic keyword matcher. Install spaCy's English model for better results (see README).</p>
+    {% endif %}
+    {% if status.pending %}
+    <p>{{ status.pending }} entr{{ 'y has' if status.pending == 1 else 'ies have' }}n't been analysed yet.</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('reanalyse') }}">
+      {% if not status.pending %}<input type="hidden" name="all" value="1">{% endif %}
+      <button class="btn-ghost" type="submit">{{ 'Analyse them now' if status.pending else 'Re-analyse all entries' }}</button>
+    </form>
+  </footer>
+</section>
+{% endblock %}

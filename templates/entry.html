@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "_alerts.html" import alert_list %}
+{% block title %}{{ entry.title or 'Entry' }} · Mind.ai{% endblock %}
+{% block content %}
+<div class="page-alerts">{{ alert_list(alerts, url_for('view_entry', entry_id=entry.id)) }}</div>
+<article class="page entry">
+  <header class="entry-head">
+    <p class="today">{{ entry.created_at|nicedate }}</p>
+    <h1>{{ entry.title or 'Untitled entry' }}</h1>
+  </header>
+
+  <section class="reading e-tint-{{ entry.emotion }}">
+    <p class="reading-main">
+      <span class="dot e-{{ entry.emotion }}"></span>
+      Mostly <strong>{{ entry.emotion }}</strong>
+      <span class="quiet">({{ (entry.emotion_conf * 100)|round|int }}% confident)</span>
+      {% if entry.emotion_second %}, with some <strong>{{ entry.emotion_second }}</strong>{% endif %}
+    </p>
+    <div class="spectrum" role="img" aria-label="Emotion breakdown">
+      {% for emo, p in ranked if p >= 0.01 %}
+      <span class="seg e-{{ emo }}" style="flex-grow: {{ p }}" title="{{ emo }} {{ (p*100)|round(1) }}%"></span>
+      {% endfor %}
+    </div>
+    <ul class="legend">
+      {% for emo, p in ranked if p >= 0.03 %}
+      <li><span class="dot e-{{ emo }}"></span>{{ emo }} {{ (p*100)|round|int }}%</li>
+      {% endfor %}
+    </ul>
+    {% if entry.model_backend.startswith('lexicon') %}
+    <p class="warn">Read by the keyword fallback, not RoBERTa. Install torch and transformers for real detection.</p>
+    {% endif %}
+  </section>
+
+  {% set m = entry.source_meta or {} %}
+  {% if entry.input_type in ('voice', 'image') %}
+  <section class="source">
+    {% if entry.media_path and entry.input_type == 'voice' %}
+    <audio controls preload="none" src="{{ url_for('entry_media', entry_id=entry.id) }}"></audio>
+    {% endif %}
+    <p class="quiet">
+      {% if entry.input_type == 'voice' %}
+        Spoken{% if m.duration %} for {{ (m.duration // 60)|int }}:{{ '%02d' % ((m.duration % 60)|int) }}{% endif %}
+        and transcribed by {{ m.engine or 'Whisper' }}.
+        {% if m.translated %}Translated to English from {{ m.language }}.{% endif %}
+      {% else %}
+        Read from a photo by {{ 'TrOCR (handwriting)' if m.engine == 'trocr' else 'Tesseract' if m.engine == 'tesseract' else 'OCR' }}{% if m.confidence %}, {{ m.confidence|pct }} confident{% endif %}.
+      {% endif %}
+      {% if m.user_correction_rate is defined %}
+        {% if m.user_correction_rate == 0 %}You kept the text exactly as read.
+        {% else %}You corrected {{ m.user_correction_rate|pct if m.user_correction_rate >= 0.005 else 'under 1%' }} of the characters.{% endif %}
+      {% endif %}
+    </p>
+    {% if entry.media_path and entry.input_type == 'image' %}
+    <details class="original">
+      <summary>Show the original page</summary>
+      <img src="{{ url_for('entry_media', entry_id=entry.id) }}" alt="Photo of the original journal page" loading="lazy">
+    </details>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if events %}
+  <section class="happened" aria-label="What happened">
+    <h2>What happened</h2>
+    <ul class="event-chips">
+      {% for ev in events %}
+      <li class="{{ 'upcoming' if ev.timing == 'upcoming' }}">
+        <a href="{{ url_for('list_entries', event=ev.event) }}" title="Sentence read as {{ ev.emotion }}">
+          <span class="dot e-{{ ev.emotion }}"></span>{{ ev.label }}{% if ev.timing == 'upcoming' %}<span class="when">{{ ev.target_date|whendate }}</span>{% endif %}
+        </a>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  <div class="entry-body">
+    {% for para in entry.body.split('\n') if para.strip() %}<p>{{ para }}</p>{% endfor %}
+  </div>
+
+  {% with entry_id = entry.id %}{% include "_response.html" %}{% endwith %}
+
+  <footer class="entry-foot">
+    <span class="quiet">{{ entry.word_count }} words, {{ {'text': 'typed', 'voice': 'spoken', 'image': 'from a photo'}[entry.input_type] }}</span>
+    <form method="post" action="{{ url_for('delete_entry', entry_id=entry.id) }}"
+          onsubmit="return confirm('Delete this entry permanently?')">
+      <button class="btn-ghost" type="submit">Delete entry</button>
+    </form>
+  </footer>
+</article>
+{% endblock %}

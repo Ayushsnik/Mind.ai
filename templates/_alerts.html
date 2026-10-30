@@ -1,0 +1,36 @@
+{# Early-warning cards. `alerts` = rows from the alerts table. #}
+{% macro alert_list(alerts, next_url) %}
+{% if alerts %}
+<section class="alerts" aria-label="Heads-up">
+  {% for a in alerts %}
+  <article class="alert">
+    <div class="alert-body">
+      <p class="alert-msg">{{ a.message }}</p>
+      {% if a.suggestion %}<p class="alert-help">{{ a.suggestion }}</p>{% endif %}
+      <div class="plan" id="plan-{{ a.id }}" {{ 'hidden' if not a.plan }}>
+        {% if a.plan %}
+        <p>{{ a.plan.intro }}</p>
+        <ol>{% for step in a.plan.steps %}<li>{{ step }}</li>{% endfor %}</ol>
+        {% endif %}
+      </div>
+      {% if not a.plan %}<button type="button" class="link-btn prepare" data-alert="{{ a.id }}">Help me prepare</button>{% endif %}
+    </div>
+    <form method="post" action="{{ url_for('dismiss_alert', alert_id=a.id) }}">
+      <input type="hidden" name="next" value="{{ next_url }}">
+      <button class="btn-ghost" type="submit" aria-label="Dismiss this heads-up">Dismiss</button>
+    </form>
+  </article>
+  {% endfor %}
+</section>
+{% endif %}
+{% endmacro %}
+
+{% macro emotion_bar(counts) %}
+{% set total = counts.values()|sum %}
+<div class="spectrum spectrum-sm" role="img"
+     aria-label="{% for e, c in counts|dictsort(by='value', reverse=true) %}{{ e }} {{ c }}{{ ', ' if not loop.last }}{% endfor %}">
+  {% for e, c in counts|dictsort(by='value', reverse=true) %}
+  <span class="seg e-{{ e }}" style="flex-grow: {{ c }}" title="{{ e }}: {{ c }} of {{ total }}"></span>
+  {% endfor %}
+</div>
+{% endmacro %}

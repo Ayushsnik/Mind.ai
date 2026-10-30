@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Mind.ai{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,500;7..72,600&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+  <div class="shell">
+    <aside class="rail">
+      <a class="brand" href="{{ url_for('write') }}">Mind<span>.ai</span></a>
+      <nav>
+        <a href="{{ url_for('write') }}" class="{{ 'on' if request.endpoint == 'write' }}">Write</a>
+        <a href="{{ url_for('list_entries') }}" class="{{ 'on' if request.endpoint in ('list_entries','view_entry') }}">Journal</a>
+        <a href="{{ url_for('insights_page') }}" class="{{ 'on' if request.endpoint == 'insights_page' }}">Insights</a>
+        <a href="{{ url_for('settings_page') }}" class="nav-settings {{ 'on' if request.endpoint == 'settings_page' }}">Settings</a>
+      </nav>
+
+      <section class="strip" aria-label="Recent moods">
+        <h2>Recent moods</h2>
+        {% if recent_strip %}
+        <ol>
+          {% for e in recent_strip|reverse %}
+          <li>
+            <a href="{{ url_for('view_entry', entry_id=e.id) }}" title="{{ e.created_at|shortdate }}: {{ e.emotion }}">
+              <span class="dot e-{{ e.emotion }}"></span>
+              <span class="strip-date">{{ e.created_at|shortdate }}</span>
+            </a>
+          </li>
+          {% endfor %}
+        </ol>
+        {% else %}
+        <p class="quiet">Your moods will collect here as you write.</p>
+        {% endif %}
+      </section>
+      <p class="lock">Entries are encrypted and stored on this device.</p>
+    </aside>
+
+    <main>
+      {% with msgs = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in msgs %}<p class="flash flash-{{ cat }}" role="status">{{ msg }}</p>{% endfor %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/reply.js') }}"></script>
+</body>
+</html>

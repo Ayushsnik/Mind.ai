@@ -1,0 +1,24 @@
+__pycache__/
+.pytest_cache/
+.env
+venv/
+instance/*
+!instance/.gitkeep
+evaluation/results/
+evaluation/data/**/*
+!evaluation/data/**/.gitkeep
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Environment variables
+.env
+
+# IDE
+.vscode/
+
+# Cache
+.pytest_cache/

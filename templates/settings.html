@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Settings · Mind.ai{% endblock %}
+{% block content %}
+<form class="page settings" method="post" action="{{ url_for('settings_page') }}">
+  <h1 class="page-title">Settings</h1>
+
+  <section class="set-block">
+    <h2>Notes back on your entries</h2>
+    <p class="quiet">After you save an entry, Mind.ai can write a short reflection with a few small suggestions based on your own patterns.</p>
+
+    <div class="choices" role="radiogroup" aria-label="Who writes the note back">
+      <label class="choice">
+        <input type="radio" name="ai_mode" value="off" {{ 'checked' if s.ai_mode == 'off' }}>
+        <span class="choice-body">
+          <strong>No AI</strong>
+          <span>Notes are put together from your own patterns with fixed wording. Nothing is generated.</span>
+        </span>
+      </label>
+      <label class="choice">
+        <input type="radio" name="ai_mode" value="local" {{ 'checked' if s.ai_mode == 'local' }}>
+        <span class="choice-body">
+          <strong>On this device <span class="tag">Recommended</span></strong>
+          <span>A model runs on your computer through Ollama. Your entry never leaves your computer.</span>
+          {% if ai.local.running and ai.local.model_pulled %}
+          <span class="ok-line">Ready: {{ ai.local.model }}</span>
+          {% elif ai.local.running %}
+          <span class="setup">Ollama is running, but the model isn't downloaded yet. Run <code>ollama pull {{ ai.local.model }}</code>.</span>
+          {% else %}
+          <span class="setup">Ollama isn't running. Install it from ollama.com, run <code>ollama pull {{ ai.local.model }}</code>, and keep the Ollama app open. Until then, notes use the no-AI wording.</span>
+          {% endif %}
+        </span>
+      </label>
+      <label class="choice">
+        <input type="radio" name="ai_mode" value="enhanced" {{ 'checked' if s.ai_mode == 'enhanced' }} {{ 'disabled' if not ai.gemini.configured }}>
+        <span class="choice-body">
+          <strong>Enhanced, with Gemini</strong>
+          <span>Google's Gemini writes the note. It never sees your entry: it gets a short summary with names, places, phone numbers and other details replaced. If Gemini can't be reached, your device writes the note instead.</span>
+          {% if not ai.gemini.configured %}
+          <span class="setup">To enable this, add <code>GEMINI_API_KEY=your-key</code> to the <code>.env</code> file and restart the app.</span>
+          {% endif %}
+        </span>
+      </label>
+    </div>
+
+    {% if ai.gemini.configured %}
+    <label class="consent">
+      <input type="checkbox" name="gemini_consent" value="1" {{ 'checked' if s.gemini_consent }}>
+      <span>I understand that in Enhanced mode a short anonymised summary of each entry is sent to Google's Gemini API.</span>
+    </label>
+    {% if preview %}
+    <details class="sent">
+      <summary>Preview: what would be sent for your latest entry</summary>
+      <pre>{{ preview }}</pre>
+    </details>
+    {% endif %}
+    {% endif %}
+
+    <label class="toggle">
+      <input type="checkbox" name="auto_reflect" value="1" {{ 'checked' if s.auto_reflect }}>
+      <span>Write a note back automatically after each entry</span>
+    </label>
+  </section>
+
+  <section class="set-block">
+    <h2>Names to always hide</h2>
+    <p class="quiet">Names, nicknames or places that should always be replaced before anything is sent to Gemini, even if they aren't recognised automatically. Separate them with commas. Stored encrypted.</p>
+    <label class="sr" for="hidden_names">Names to always hide</label>
+    <textarea id="hidden_names" name="hidden_names" rows="2" class="field" placeholder="e.g. Chintu, Shreya, Vashi">{{ s.hidden_names|join(', ') }}</textarea>
+  </section>
+
+  {% if stats %}
+  <section class="set-block">
+    <h2>How the notes have been rated</h2>
+    <table class="stats">
+      <thead><tr><th scope="col">Written by</th><th scope="col">Notes</th><th scope="col">Average time</th><th scope="col">Helpful</th><th scope="col">Not helpful</th></tr></thead>
+      <tbody>
+      {% for r in stats %}
+      <tr><td>{{ {'local': 'This device', 'gemini': 'Gemini', 'template': 'No AI'}.get(r.backend, r.backend) }}</td>
+          <td>{{ r.n }}</td><td>{{ '%.1f'|format((r.avg_ms or 0) / 1000) }} s</td><td>{{ r.helpful or 0 }}</td><td>{{ r.not_helpful or 0 }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+
+  <section class="set-block">
+    <h2>If an entry sounds like a crisis</h2>
+    <p class="quiet">When an entry mentions suicide or self-harm, Mind.ai doesn't write an AI note. It shows these numbers instead, whatever the settings above:
+      {% for h in helplines %}<strong>{{ h.name }} {{ h.number }}</strong>{{ ', ' if not loop.last else '.' }}{% endfor %}
+      To change them for another country, set <code>MINDAI_HELPLINES</code> in <code>.env</code>.</p>
+  </section>
+
+  <div class="page-foot"><button type="submit" class="btn">Save settings</button></div>
+</form>
+{% endblock %}

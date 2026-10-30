@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% from "_alerts.html" import alert_list %}
+{% block content %}
+<div class="page-alerts">{{ alert_list(alerts, url_for('write')) }}</div>
+<form class="page" method="post" action="{{ url_for('save_entry') }}" id="entry-form">
+  <div class="modes" role="tablist" aria-label="How do you want to journal?">
+    <button type="button" role="tab" class="mode on" data-mode="text" aria-selected="true">Type</button>
+    <button type="button" role="tab" class="mode" data-mode="voice" aria-selected="false">Speak</button>
+    <button type="button" role="tab" class="mode" data-mode="image" aria-selected="false">Photo of a page</button>
+  </div>
+
+  <p class="today" id="today"></p>
+  <label class="sr" for="title">Title (optional)</label>
+  <input class="title-input" id="title" name="title" maxlength="120"
+         placeholder="Give today a title (optional)" value="{{ draft.title if draft else '' }}">
+
+  {# ---------- Speak ---------- #}
+  <section class="capture" id="panel-voice" hidden aria-label="Record your entry">
+    {% if caps.speech.available %}
+    <div class="recorder">
+      <button type="button" class="rec" id="rec-btn" aria-pressed="false">
+        <span class="rec-dot" aria-hidden="true"></span><span id="rec-label">Start recording</span>
+      </button>
+      <span class="rec-time" id="rec-time" aria-live="off">0:00</span>
+      <label class="link-btn">Upload a recording<input type="file" id="audio-file" accept="audio/*" hidden></label>
+    </div>
+    <p class="hint">Speak in English, Hindi, Marathi or any language Whisper knows. Other languages are translated to English so the mood can be read.</p>
+    <audio id="audio-preview" controls hidden></audio>
+    {% else %}
+    <p class="setup">Voice input isn't set up yet. Run <code>pip install faster-whisper</code>, then restart the app.</p>
+    {% endif %}
+  </section>
+
+  {# ---------- Photo ---------- #}
+  <section class="capture" id="panel-image" hidden aria-label="Read a photographed page">
+    {% if caps.ocr.tesseract or caps.ocr.trocr %}
+    <label class="drop" id="drop">
+      <input type="file" id="image-file" accept="image/*" capture="environment">
+      <span class="drop-main">Choose a photo of your journal page</span>
+      <span class="drop-sub">or drop it here. Lay the page flat, in good light, filling the frame.</span>
+    </label>
+    <fieldset class="ocr-mode">
+      <legend>The page is</legend>
+      <label><input type="radio" name="ocr_mode" value="auto" checked> Not sure</label>
+      <label><input type="radio" name="ocr_mode" value="handwritten" {{ 'disabled' if not caps.ocr.trocr }}> Handwritten</label>
+      <label><input type="radio" name="ocr_mode" value="printed" {{ 'disabled' if not caps.ocr.tesseract }}> Printed or typed</label>
+    </fieldset>
+    {% if not caps.ocr.trocr %}
+    <p class="setup">Handwriting reading (TrOCR) isn't installed, so only printed pages will read well. Install torch and transformers to enable it.</p>
+    {% elif not caps.ocr.tesseract %}
+    <p class="setup">Tesseract isn't installed. Handwriting works; printed pages will be slower. See the README to install it.</p>
+    {% endif %}
+    {% else %}
+    <p class="setup">No OCR engine is installed. Install Tesseract and/or torch + transformers (see README), then restart the app.</p>
+    {% endif %}
+  </section>
+
+  <p class="status" id="status" role="status" aria-live="polite" hidden></p>
+
+  <div class="review" id="review">
+    <figure class="scan" id="scan" hidden>
+      <img id="scan-img" alt="Your page with each detected line boxed and numbered">
+      <figcaption id="scan-caption"></figcaption>
+    </figure>
+    <div class="review-text">
+      <ul class="notes" id="notes" hidden></ul>
+      <label class="sr" for="body">Journal entry</label>
+      <textarea id="body" name="body" class="paper" required
+                placeholder="What happened today, and how did it feel?">{{ draft.body if draft else '' }}</textarea>
+    </div>
+  </div>
+
+  <input type="hidden" name="input_type" id="input_type" value="{{ draft.input_type if draft else 'text' }}">
+  <input type="hidden" name="source_text" id="source_text" value="{{ draft.source_text if draft else '' }}">
+  <input type="hidden" name="source_meta" id="source_meta" value="{{ draft.source_meta if draft else '' }}">
+  <input type="hidden" name="media_token" id="media_token" value="{{ draft.media_token if draft else '' }}">
+
+  <div class="page-foot">
+    <div class="live" id="live" aria-live="polite">
+      <span class="dot" id="live-dot"></span>
+      <span id="live-label">Start writing to see the mood it reads.</span>
+    </div>
+    <span class="count" id="count">0 words</span>
+    <button type="button" class="btn-ghost" id="discard" hidden>Start over</button>
+    <button type="submit" class="btn">Save entry</button>
+  </div>
+</form>
+{% endblock %}
